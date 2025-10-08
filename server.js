@@ -50,6 +50,8 @@ export const startServer = async () => {
   await mongoose.connect(mongoUri, {
     serverSelectionTimeoutMS: 5000,
   });
+  // eslint-disable-next-line no-console
+  console.log('Database connection successful');
 
   return new Promise((resolve) => {
     const server = app.listen(PORT, '0.0.0.0', () => resolve(server));
