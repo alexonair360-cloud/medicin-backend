@@ -52,7 +52,7 @@ export const startServer = async () => {
   });
 
   return new Promise((resolve) => {
-    const server = app.listen(PORT, () => resolve(server));
+    const server = app.listen(PORT, '0.0.0.0', () => resolve(server));
   });
 };
 
@@ -63,7 +63,7 @@ if (process.env.NODE_ENV !== 'test') {
       startCronJobs();
     }
     // eslint-disable-next-line no-console
-    console.log(`Backend running on http://localhost:${PORT}`);
+    console.log(`Backend running on http://0.0.0.0:${PORT}`);
   }).catch((err) => {
     // eslint-disable-next-line no-console
     console.error('Failed to start server', err);
