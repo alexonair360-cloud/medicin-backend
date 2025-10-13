@@ -3,17 +3,39 @@ import Customer from '../models/Customer.js';
 export const listCustomers = async (req, res, next) => {
   try {
     const { q } = req.query;
-    const filter = {};
+    const match = {};
     if (q) {
       const regex = new RegExp(q, 'i');
-      filter.$or = [
+      match.$or = [
         { name: regex },
         { phone: regex },
         { email: regex },
         { customerId: regex },
       ];
     }
-    const customers = await Customer.find(filter).sort({ name: 1 }).lean();
+
+    const customers = await Customer.aggregate([
+      { $match: match },
+      { $sort: { name: 1 } },
+      {
+        $lookup: {
+          from: 'bills',
+          localField: '_id',
+          foreignField: 'customerId',
+          as: 'bills',
+          pipeline: [
+            { $project: { grandTotal: 1 } },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          totalOrders: { $size: '$bills' },
+          totalSpent: { $sum: '$bills.grandTotal' },
+        },
+      },
+      { $project: { bills: 0 } },
+    ]);
     res.json(customers);
   } catch (err) {
     next(err);

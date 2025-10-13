@@ -7,6 +7,8 @@ const customerSchema = new mongoose.Schema({
   email: { type: String },
   address: { type: String },
   prescriptions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Prescription' }],
+  totalOrders: { type: Number, default: 0 },
+  totalSpent: { type: Number, default: 0 },
 });
 
 export default mongoose.model('Customer', customerSchema);

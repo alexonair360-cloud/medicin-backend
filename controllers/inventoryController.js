@@ -91,4 +91,87 @@ export const addBatch = async (req, res, next) => {
   }
 };
 
+export const listBatches = async (req, res, next) => {
+  try {
+    const { medicineId, vendorId } = req.query;
+    const filter = {};
+    if (medicineId) filter.medicineId = medicineId;
+    if (vendorId) filter.vendorId = vendorId;
+    const batches = await Batch.find(filter)
+      .sort({ purchaseDate: -1, expiryDate: -1, _id: -1 })
+      .populate('vendorId', 'name phone')
+      .populate('medicineId', 'name');
+    res.json(batches);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateBatch = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = {};
+    const { batchNo, quantity, expiryDate, manufacturingDate, unitPrice, mrp, discountPercent, vendorId, purchaseDate } = req.body || {};
+    if (typeof batchNo === 'string') updates.batchNo = batchNo;
+    if (typeof quantity === 'number') updates.quantity = quantity;
+    if (expiryDate) updates.expiryDate = new Date(expiryDate);
+    if (manufacturingDate) updates.manufacturingDate = new Date(manufacturingDate);
+    if (typeof unitPrice === 'number') updates.unitPrice = unitPrice;
+    if (typeof mrp === 'number') updates.mrp = mrp;
+    if (typeof discountPercent === 'number') updates.discountPercent = discountPercent;
+    if (vendorId) updates.vendorId = vendorId;
+    if (purchaseDate) updates.purchaseDate = new Date(purchaseDate);
+    const updated = await Batch.findByIdAndUpdate(id, updates, { new: true })
+      .populate('vendorId', 'name phone')
+      .populate('medicineId', 'name');
+    if (!updated) return res.status(404).json({ message: 'Batch not found' });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteBatch = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Batch.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: 'Batch not found' });
+    res.json({ ok: true, id });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Aggregate medicine-level stats: total batches, total in-stock sum, and expiring-soon batches count
+export const medicineStats = async (req, res, next) => {
+  try {
+    const expDays = Number(req.query.expDays || 30);
+    const now = new Date();
+    const soon = new Date(now.getTime() + expDays * 24 * 60 * 60 * 1000);
+    const pipeline = [
+      {
+        $group: {
+          _id: '$medicineId',
+          totalBatches: { $sum: 1 },
+          totalInStock: { $sum: '$quantity' },
+          expiringSoonCount: {
+            $sum: {
+              $cond: [
+                { $and: [ { $gte: ['$expiryDate', now] }, { $lte: ['$expiryDate', soon] }, { $gt: ['$quantity', 0] } ] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ];
+    const rows = await Batch.aggregate(pipeline);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+};
+
 
