@@ -12,6 +12,7 @@ import invoiceRoutes from './routes/invoices.js';
 import vendorRoutes from './routes/vendors.js';
 import inventoryRoutes from './routes/inventory.js';
 import settingsRoutes from './routes/settings.js';
+import customerRoutes from './routes/customers.js';
 import { startCronJobs } from './cron/jobs.js';
 
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/customers', customerRoutes);
 
 // Centralized error handler skeleton
 // eslint-disable-next-line no-unused-vars

@@ -18,7 +18,11 @@ export const expiringBatches = async (req, res, next) => {
   try {
     const days = Number(req.query.days || 15);
     const data = await getExpiringBatches(days);
-    res.json(data);
+    const mapped = (Array.isArray(data) ? data : []).map((b) => ({
+      ...b,
+      medicineName: b?.medicineId?.name ?? b?.medicineName ?? b?.name,
+    }));
+    res.json(mapped);
   } catch (err) {
     next(err);
   }
