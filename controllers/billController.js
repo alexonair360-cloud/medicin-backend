@@ -37,9 +37,26 @@ const computeTotals = (items = []) => {
 
 export const listBills = async (req, res, next) => {
   try {
-    const { customerId } = req.query;
+    const { customerId, startDate, endDate } = req.query;
     const filter = {};
     if (customerId) filter.customerId = customerId;
+    // Optional date range filter (inclusive)
+    if (startDate || endDate) {
+      const createdAt = {};
+      if (startDate) {
+        const s = new Date(startDate);
+        if (!isNaN(s)) createdAt.$gte = s;
+      }
+      if (endDate) {
+        const e = new Date(endDate);
+        if (!isNaN(e)) {
+          // set to end of the day if just a date
+          if (endDate.length <= 10) e.setHours(23, 59, 59, 999);
+          createdAt.$lte = e;
+        }
+      }
+      if (Object.keys(createdAt).length) filter.createdAt = createdAt;
+    }
     const bills = await Bill.find(filter).sort({ createdAt: -1 }).populate('customerId', 'name phone email');
     res.json(bills);
   } catch (err) {
