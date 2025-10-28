@@ -1,4 +1,5 @@
 import Bill from '../models/Bill.js';
+import Batch from '../models/Batch.js';
 import nodemailer from 'nodemailer';
 import Customer from '../models/Customer.js';
 
@@ -37,9 +38,11 @@ const computeTotals = (items = []) => {
 
 export const listBills = async (req, res, next) => {
   try {
-    const { customerId, startDate, endDate } = req.query;
+    const { customerId, billNumber, startDate, endDate, page, limit } = req.query;
     const filter = {};
     if (customerId) filter.customerId = customerId;
+    if (billNumber) filter.billNumber = { $regex: billNumber, $options: 'i' };
+    
     // Optional date range filter (inclusive)
     if (startDate || endDate) {
       const createdAt = {};
@@ -57,7 +60,33 @@ export const listBills = async (req, res, next) => {
       }
       if (Object.keys(createdAt).length) filter.createdAt = createdAt;
     }
-    const bills = await Bill.find(filter).sort({ createdAt: -1 }).populate('customerId', 'name phone email');
+    
+    // If pagination params are provided
+    if (page && limit) {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 15;
+      const skip = (pageNum - 1) * limitNum;
+      
+      const [bills, total] = await Promise.all([
+        Bill.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limitNum)
+          .populate('customerId', 'customerId name phone email'),
+        Bill.countDocuments(filter)
+      ]);
+      
+      return res.json({
+        items: bills,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      });
+    }
+    
+    // No pagination - return all
+    const bills = await Bill.find(filter).sort({ createdAt: -1 }).populate('customerId', 'customerId name phone email');
     res.json(bills);
   } catch (err) {
     next(err);
@@ -66,7 +95,7 @@ export const listBills = async (req, res, next) => {
 
 export const getBill = async (req, res, next) => {
   try {
-    const bill = await Bill.findById(req.params.id).populate('customerId', 'name phone email');
+    const bill = await Bill.findById(req.params.id).populate('customerId', 'customerId name phone email');
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
     res.json(bill);
   } catch (err) { next(err); }
@@ -78,6 +107,28 @@ export const createBill = async (req, res, next) => {
     if (!customerId) return res.status(400).json({ message: 'customerId is required' });
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: 'items are required' });
 
+    // Validate and deduct inventory from batches
+    for (const item of items) {
+      if (item.batchId && item.quantity > 0) {
+        const batch = await Batch.findById(item.batchId);
+        if (!batch) {
+          return res.status(400).json({ message: `Batch ${item.batchNo || item.batchId} not found` });
+        }
+        if (batch.quantity < item.quantity) {
+          return res.status(400).json({ message: `Insufficient stock in batch ${batch.batchNo}. Available: ${batch.quantity}` });
+        }
+      }
+    }
+
+    // Deduct inventory
+    for (const item of items) {
+      if (item.batchId && item.quantity > 0) {
+        await Batch.findByIdAndUpdate(item.batchId, {
+          $inc: { quantity: -item.quantity }
+        });
+      }
+    }
+
     // normalize items, compute line amounts and filter out empty/zero lines
     const normItems = items
       .map((it) => {
@@ -88,7 +139,9 @@ export const createBill = async (req, res, next) => {
         const { total } = computeLine({ mrp, quantity, discountPct, gstPct });
         return {
           medicineId: it.medicineId || undefined,
+          batchId: it.batchId || undefined,
           productName: (it.productName || '').trim() || undefined,
+          batchNo: (it.batchNo || '').trim() || undefined,
           mrp,
           quantity,
           discountPct,
@@ -115,6 +168,7 @@ export const createBill = async (req, res, next) => {
     } catch {}
     res.status(201).json(doc);
   } catch (err) {
+    next(err);
   }
 };
 

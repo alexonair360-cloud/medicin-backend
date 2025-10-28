@@ -45,13 +45,18 @@ export const listCustomers = async (req, res, next) => {
 export const createCustomer = async (req, res, next) => {
   try {
     const { customerId, name, phone, email, address } = req.body || {};
-    if (!name || !phone) {
-      return res.status(400).json({ message: 'Name and phone are required' });
+    if (!name) {
+      return res.status(400).json({ message: 'Name is required' });
     }
-    const dup = await Customer.findOne({ $or: [ { phone }, ...(customerId ? [{ customerId }] : []) ] });
-    if (dup) {
-      return res.status(409).json({ message: dup.phone === phone ? 'Customer with this phone already exists' : 'Customer ID already exists' });
+    
+    // Check for duplicates only if phone is provided
+    if (phone) {
+      const dup = await Customer.findOne({ $or: [ { phone }, ...(customerId ? [{ customerId }] : []) ] });
+      if (dup) {
+        return res.status(409).json({ message: dup.phone === phone ? 'Customer with this phone already exists' : 'Customer ID already exists' });
+      }
     }
+    
     const created = await Customer.create({ customerId, name, phone, email, address });
     res.status(201).json(created);
   } catch (err) {

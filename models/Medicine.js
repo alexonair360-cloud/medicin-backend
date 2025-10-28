@@ -7,6 +7,8 @@ const medicineSchema = new mongoose.Schema({
   category: { type: String },
   unit: { type: String },
   defaultLowStockThreshold: { type: Number, default: 0 },
+  gstPercent: { type: Number, default: 0 },
+  discountPercent: { type: Number, default: 0 },
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
   createdAt: { type: Date, default: Date.now },
 });

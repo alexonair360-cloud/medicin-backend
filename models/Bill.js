@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 
 const billItemSchema = new mongoose.Schema({
   medicineId: { type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' },
+  batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
   productName: { type: String },
+  batchNo: { type: String },
   mrp: { type: Number, required: true },
   quantity: { type: Number, required: true },
   discountPct: { type: Number, default: 0 },

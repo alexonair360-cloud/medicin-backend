@@ -13,7 +13,40 @@ export const createMedicine = async (req, res, next) => {
 
 export const listMedicines = async (req, res, next) => {
   try {
-    const medicines = await Medicine.find({})
+    const { search, page, limit } = req.query;
+    
+    // Build query
+    const query = {};
+    if (search) {
+      query.name = { $regex: search, $options: 'i' }; // Case-insensitive search
+    }
+    
+    // If pagination params are provided
+    if (page && limit) {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 10;
+      const skip = (pageNum - 1) * limitNum;
+      
+      const [medicines, total] = await Promise.all([
+        Medicine.find(query)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limitNum)
+          .populate('vendorId', 'name phone'),
+        Medicine.countDocuments(query)
+      ]);
+      
+      return res.json({
+        items: medicines,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      });
+    }
+    
+    // No pagination - return all
+    const medicines = await Medicine.find(query)
       .sort({ createdAt: -1 })
       .populate('vendorId', 'name phone');
     res.json(medicines);
