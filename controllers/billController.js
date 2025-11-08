@@ -104,7 +104,7 @@ export const getBill = async (req, res, next) => {
 export const createBill = async (req, res, next) => {
   try {
     const { customerId, items = [], notes } = req.body || {};
-    if (!customerId) return res.status(400).json({ message: 'customerId is required' });
+    // customerId is now optional - can be null for bills without customer
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: 'items are required' });
 
     // Validate and deduct inventory from batches
@@ -154,18 +154,30 @@ export const createBill = async (req, res, next) => {
     if (normItems.length === 0) return res.status(400).json({ message: 'no valid items to bill' });
 
     const totals = computeTotals(normItems);
-    const doc = await Bill.create({
-      customerId,
+    
+    // Create bill object
+    const billData = {
       items: normItems,
       ...totals,
       notes: notes || undefined,
-    });
-    // Denormalize counters on Customer
-    try {
-      await Customer.findByIdAndUpdate(customerId, {
-        $inc: { totalOrders: 1, totalSpent: totals.grandTotal }
-      }, { new: false });
-    } catch {}
+    };
+    
+    // Only add customerId if it exists
+    if (customerId) {
+      billData.customerId = customerId;
+    }
+    
+    const doc = await Bill.create(billData);
+    
+    // Denormalize counters on Customer (only if customerId exists)
+    if (customerId) {
+      try {
+        await Customer.findByIdAndUpdate(customerId, {
+          $inc: { totalOrders: 1, totalSpent: totals.grandTotal }
+        }, { new: false });
+      } catch {}
+    }
+    
     res.status(201).json(doc);
   } catch (err) {
     next(err);
@@ -176,15 +188,17 @@ export const deleteBill = async (req, res, next) => {
   try {
     const bill = await Bill.findByIdAndDelete(req.params.id);
     if (!bill) return res.status(404).json({ message: 'Bill not found' });
-    // Denormalize counters on Customer: decrement
-    try {
-      const cust = await Customer.findById(bill.customerId).lean();
-      if (cust) {
-        const newOrders = Math.max(0, (cust.totalOrders || 0) - 1);
-        const newSpent = Math.max(0, (cust.totalSpent || 0) - (bill.grandTotal || 0));
-        await Customer.findByIdAndUpdate(bill.customerId, { $set: { totalOrders: newOrders, totalSpent: newSpent } });
-      }
-    } catch {}
+    // Denormalize counters on Customer: decrement (only if bill has a customer)
+    if (bill.customerId) {
+      try {
+        const cust = await Customer.findById(bill.customerId).lean();
+        if (cust) {
+          const newOrders = Math.max(0, (cust.totalOrders || 0) - 1);
+          const newSpent = Math.max(0, (cust.totalSpent || 0) - (bill.grandTotal || 0));
+          await Customer.findByIdAndUpdate(bill.customerId, { $set: { totalOrders: newOrders, totalSpent: newSpent } });
+        }
+      } catch {}
+    }
     res.json({ message: 'Deleted' });
   } catch (err) { next(err); }
 };

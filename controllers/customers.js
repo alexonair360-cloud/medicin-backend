@@ -45,8 +45,13 @@ export const listCustomers = async (req, res, next) => {
 export const createCustomer = async (req, res, next) => {
   try {
     const { customerId, name, phone, email, address } = req.body || {};
-    if (!name) {
-      return res.status(400).json({ message: 'Name is required' });
+    
+    // If no name provided but phone is provided, use phone as name
+    let finalName = name;
+    if (!finalName && phone) {
+      finalName = `Customer ${phone}`;
+    } else if (!finalName) {
+      return res.status(400).json({ message: 'Name or phone is required' });
     }
     
     // Check for duplicates only if phone is provided
@@ -57,7 +62,7 @@ export const createCustomer = async (req, res, next) => {
       }
     }
     
-    const created = await Customer.create({ customerId, name, phone, email, address });
+    const created = await Customer.create({ customerId, name: finalName, phone, email, address });
     res.status(201).json(created);
   } catch (err) {
     next(err);

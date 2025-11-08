@@ -14,6 +14,7 @@ import inventoryRoutes from './routes/inventory.js';
 import settingsRoutes from './routes/settings.js';
 import customerRoutes from './routes/customers.js';
 import billRoutes from './routes/bills.js';
+import passwordResetRoutes from './routes/passwordReset.js';
 import { startCronJobs } from './cron/jobs.js';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/bills', billRoutes);
+app.use('/api/password-reset', passwordResetRoutes);
 
 // Centralized error handler skeleton
 // eslint-disable-next-line no-unused-vars

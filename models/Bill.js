@@ -14,7 +14,7 @@ const billItemSchema = new mongoose.Schema({
 
 const billSchema = new mongoose.Schema({
   billNumber: { type: String, unique: true },
-  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: false }, // Optional - for bills without customer
   items: { type: [billItemSchema], default: [] },
   subtotal: { type: Number, required: true },
   totalDiscount: { type: Number, required: true },

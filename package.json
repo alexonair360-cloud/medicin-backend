@@ -25,7 +25,8 @@
     "mongoose": "^8.18.1",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.9",
-    "pdfkit": "^0.15.0"
+    "pdfkit": "^0.15.0",
+    "twilio": "^5.10.4"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
